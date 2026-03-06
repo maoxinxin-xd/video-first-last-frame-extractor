@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="corporate">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>视频首尾帧提取器</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css" />
+    <link rel="stylesheet" href="./custom.css" />
+  </head>
+  <body class="min-h-screen bg-base-200">
+    <div class="hero min-h-screen app-gradient">
+      <div class="hero-content w-full max-w-6xl px-4 py-10">
+        <div class="w-full space-y-6">
+          <header class="card border border-base-300 bg-base-100/90 shadow-xl backdrop-blur">
+            <div class="card-body">
+              <h1 class="text-3xl font-bold tracking-tight md:text-4xl">视频首尾帧提取器</h1>
+              <p class="text-sm text-base-content/75 md:text-base">
+                纯前端处理，上传视频后提取首帧与尾帧，统一导出 PNG，支持单图下载与 ZIP 打包下载。
+              </p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="badge badge-primary">纯前端</span>
+                <span class="badge badge-secondary">PNG 统一输出</span>
+                <span class="badge badge-accent">ZIP 打包下载</span>
+              </div>
+            </div>
+          </header>
+
+          <main class="grid grid-cols-1 gap-6 lg:grid-cols-5">
+            <section class="card border border-base-300 bg-base-100 shadow-xl lg:col-span-2">
+              <div class="card-body gap-4">
+                <h2 class="card-title text-lg">上传与提取</h2>
+                <label class="form-control w-full">
+                  <div class="label">
+                    <span class="label-text">选择视频文件</span>
+                  </div>
+                  <input id="videoInput" type="file" class="file-input file-input-bordered w-full" accept="video/*" />
+                </label>
+
+                <div class="rounded-box border border-base-300 bg-base-200 p-3">
+                  <p class="mb-2 text-xs text-base-content/70">浏览器支持检测（仅供参考）</p>
+                  <div id="formatSupport" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <button id="extractBtn" class="btn btn-primary btn-block" disabled>
+                  提取首尾帧
+                </button>
+
+                <div id="statusWrap" class="hidden">
+                  <div id="statusAlert" class="alert">
+                    <span id="statusText">准备就绪</span>
+                  </div>
+                </div>
+
+                <video
+                  id="previewVideo"
+                  class="hidden w-full rounded-box border border-base-300 bg-black/90"
+                  controls
+                  preload="metadata"
+                  playsinline
+                  muted
+                ></video>
+              </div>
+            </section>
+
+            <section class="card border border-base-300 bg-base-100 shadow-xl lg:col-span-3">
+              <div class="card-body gap-5">
+                <h2 class="card-title text-lg">提取结果</h2>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <article class="frame-card">
+                    <div class="frame-card__head">
+                      <span>首帧</span>
+                      <button id="downloadFirstBtn" class="btn btn-sm btn-outline" disabled>下载 PNG</button>
+                    </div>
+                    <div class="frame-card__body">
+                      <img id="firstFrameImg" alt="首帧预览" class="frame-image hidden" />
+                      <p id="firstFramePlaceholder" class="placeholder-text">暂无首帧</p>
+                    </div>
+                  </article>
+
+                  <article class="frame-card">
+                    <div class="frame-card__head">
+                      <span>尾帧</span>
+                      <button id="downloadLastBtn" class="btn btn-sm btn-outline" disabled>下载 PNG</button>
+                    </div>
+                    <div class="frame-card__body">
+                      <img id="lastFrameImg" alt="尾帧预览" class="frame-image hidden" />
+                      <p id="lastFramePlaceholder" class="placeholder-text">暂无尾帧</p>
+                    </div>
+                  </article>
+                </div>
+
+                <div class="divider my-1"></div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <button id="downloadZipBtn" class="btn btn-secondary" disabled>下载 ZIP（首帧+尾帧）</button>
+                  <span class="text-xs text-base-content/70">导出图片统一为 PNG 格式</span>
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="captureCanvas" class="hidden"></canvas>
+
+    <script src="./lib/jszip.min.js"></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
