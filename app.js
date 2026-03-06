@@ -1,19 +1,27 @@
 const elements = {
+  mainContainer: document.querySelector("#mainContainer"),
+  dropZone: document.querySelector("#dropZone"),
   videoInput: document.querySelector("#videoInput"),
-  extractBtn: document.querySelector("#extractBtn"),
   previewVideo: document.querySelector("#previewVideo"),
-  captureCanvas: document.querySelector("#captureCanvas"),
-  formatSupport: document.querySelector("#formatSupport"),
-  statusWrap: document.querySelector("#statusWrap"),
-  statusAlert: document.querySelector("#statusAlert"),
-  statusText: document.querySelector("#statusText"),
+  uploadPrompt: document.querySelector("#uploadPrompt"),
+  replaceBtn: document.querySelector("#replaceBtn"),
+  videoOverlay: document.querySelector("#videoOverlay"),
+  
+  resultsSection: document.querySelector("#resultsSection"),
   firstFrameImg: document.querySelector("#firstFrameImg"),
   lastFrameImg: document.querySelector("#lastFrameImg"),
-  firstFramePlaceholder: document.querySelector("#firstFramePlaceholder"),
-  lastFramePlaceholder: document.querySelector("#lastFramePlaceholder"),
+  firstFrameTime: document.querySelector("#firstFrameTime"),
+  lastFrameTime: document.querySelector("#lastFrameTime"),
+  
   downloadFirstBtn: document.querySelector("#downloadFirstBtn"),
   downloadLastBtn: document.querySelector("#downloadLastBtn"),
   downloadZipBtn: document.querySelector("#downloadZipBtn"),
+  downloadCurrentBtn: document.querySelector("#downloadCurrentBtn"),
+  
+  captureCanvas: document.querySelector("#captureCanvas"),
+  statusToast: document.querySelector("#statusToast"),
+  statusText: document.querySelector("#statusText"),
+  statusSpinner: document.querySelector("#statusSpinner"),
 };
 
 const state = {
@@ -22,335 +30,334 @@ const state = {
   lastBlob: null,
   firstPreviewUrl: "",
   lastPreviewUrl: "",
+  isProcessing: false,
 };
 
-const FORMAT_PROBES = [
-  { label: "MP4(H.264/AAC)", mime: 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"' },
-  { label: "WebM(VP8/Vorbis)", mime: 'video/webm; codecs="vp8, vorbis"' },
-  { label: "WebM(VP9/Opus)", mime: 'video/webm; codecs="vp9, opus"' },
-  { label: "Ogg(Theora/Vorbis)", mime: 'video/ogg; codecs="theora, vorbis"' },
-  { label: "QuickTime(MOV)", mime: "video/quicktime" },
-  { label: "MPEG-TS", mime: "video/mp2t" },
-];
+let toastTimeout = null;
 
 function init() {
-  renderFormatSupport();
   bindEvents();
-  setStatus("请选择一个视频文件开始处理。", "info");
 }
 
 function bindEvents() {
-  elements.videoInput.addEventListener("change", handleFileSelect);
-  elements.extractBtn.addEventListener("click", extractFrames);
-  elements.downloadFirstBtn.addEventListener("click", () => downloadSingle("first"));
-  elements.downloadLastBtn.addEventListener("click", () => downloadSingle("last"));
-  elements.downloadZipBtn.addEventListener("click", downloadZip);
+  // Click to upload
+  elements.dropZone.addEventListener("click", (e) => {
+    if (elements.previewVideo.classList.contains("hidden")) {
+        elements.videoInput.click();
+    }
+  });
+
+  // Drag & Drop
+  elements.dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (elements.previewVideo.classList.contains("hidden")) {
+        elements.dropZone.style.borderColor = "rgba(116, 94, 245, 0.5)"; // primary/50
+        elements.dropZone.style.backgroundColor = "rgba(116, 94, 245, 0.05)"; // primary/5
+    }
+  });
+
+  elements.dropZone.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    elements.dropZone.style.borderColor = "";
+    elements.dropZone.style.backgroundColor = "";
+  });
+
+  elements.dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    elements.dropZone.style.borderColor = "";
+    elements.dropZone.style.backgroundColor = "";
+    
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // File Input Change
+  elements.videoInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) handleFile(file);
+    // Reset input value to allow selecting same file again
+    elements.videoInput.value = "";
+  });
+
+  // Replace Video
+  elements.replaceBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    resetUI();
+    elements.videoInput.click();
+  });
+  
+  // Downloads
+  elements.downloadFirstBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadSingle("first");
+  });
+  elements.downloadLastBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadSingle("last");
+  });
+  elements.downloadZipBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadZip();
+  });
+  elements.downloadCurrentBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadCurrentFrame();
+  });
 }
 
-function renderFormatSupport() {
-  const detector = document.createElement("video");
-  const html = FORMAT_PROBES.map((item) => {
-    const supportLevel = detector.canPlayType(item.mime);
-    const supportText = supportLevel === "probably" ? "高" : supportLevel === "maybe" ? "中" : "低";
-    const badgeClass = supportLevel === "" ? "badge-ghost" : supportLevel === "probably" ? "badge-success" : "badge-warning";
-    return `<span class="badge ${badgeClass}">${item.label}: ${supportText}</span>`;
-  }).join("");
-  elements.formatSupport.innerHTML = html;
-}
-
-function handleFileSelect(event) {
-  const file = event.target.files && event.target.files[0];
-  clearOutputFrames();
-
-  if (!file) {
-    setStatus("未选择文件。", "warning");
-    elements.extractBtn.disabled = true;
-    return;
-  }
-
+function handleFile(file) {
   if (!file.type.startsWith("video/")) {
-    setStatus("该文件不是视频，请重新选择。", "error");
-    elements.extractBtn.disabled = true;
+    showToast("请选择有效的视频文件", "error");
     return;
   }
 
-  clearVideoUrl();
+  resetUI();
+  
   state.videoUrl = URL.createObjectURL(file);
-
   elements.previewVideo.src = state.videoUrl;
+  
+  elements.uploadPrompt.classList.add("hidden");
   elements.previewVideo.classList.remove("hidden");
-  elements.extractBtn.disabled = false;
-  setStatus("视频已加载，点击“提取首尾帧”。", "success");
+  elements.videoOverlay.classList.remove("hidden");
+  elements.downloadCurrentBtn.classList.remove("hidden");
+  elements.downloadCurrentBtn.classList.add("flex");
+  
+  showToast("正在读取视频信息...", "info");
+  
+  elements.previewVideo.onloadedmetadata = () => {
+     extractFrames();
+  };
+  
+  elements.previewVideo.onerror = () => {
+      showToast("视频加载失败，可能格式不受支持", "error");
+      resetUI();
+  };
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = (seconds % 60).toFixed(2);
+  return `${m.toString().padStart(2, "0")}:${s.padStart(5, "0")}`;
 }
 
 async function extractFrames() {
-  if (!elements.previewVideo.src) {
-    setStatus("请先上传视频文件。", "warning");
-    return;
-  }
-
-  setUiBusy(true);
-  setStatus("正在提取首帧与尾帧，请稍候...", "info", true);
+  if (state.isProcessing) return;
+  state.isProcessing = true;
+  showToast("正在提取超清首尾帧...", "info");
 
   try {
-    await ensureMetadata(elements.previewVideo);
-
-    const duration = Number.isFinite(elements.previewVideo.duration) ? elements.previewVideo.duration : 0;
-    if (duration <= 0) {
-      throw new Error("视频时长异常，无法提取帧。");
+    const duration = elements.previewVideo.duration;
+    if (!Number.isFinite(duration) || duration <= 0) {
+      throw new Error("视频时长无效");
     }
 
+    // Capture First Frame
     const firstBlob = await captureFrameAt(0);
+    
+    // Capture Last Frame
+    const epsilon = Math.min(0.1, duration / 10);
+    const lastBlob = await captureFrameAt(Math.max(0, duration - epsilon));
 
-    const epsilon = Math.min(0.05, duration / 10);
-    const tailTime = Math.max(duration - epsilon, 0);
-    const lastBlob = await captureFrameAt(tailTime);
+    // Update State
+    state.firstBlob = firstBlob;
+    state.lastBlob = lastBlob;
+    state.firstPreviewUrl = URL.createObjectURL(firstBlob);
+    state.lastPreviewUrl = URL.createObjectURL(lastBlob);
 
-    setExtractedFrames(firstBlob, lastBlob);
-    setStatus("提取完成，可下载单图或 ZIP。", "success");
+    // Update UI
+    elements.firstFrameImg.src = state.firstPreviewUrl;
+    elements.lastFrameImg.src = state.lastPreviewUrl;
+    if (elements.firstFrameTime) elements.firstFrameTime.textContent = "00:00.00";
+    if (elements.lastFrameTime) elements.lastFrameTime.textContent = formatTime(duration);
+
+    elements.mainContainer.classList.add("has-results");
+    elements.resultsSection.classList.remove("hidden");
+
+    showToast("提取完成！已生成超清画质截图", "success");
   } catch (error) {
-    setStatus(error.message || "提取失败，请更换视频后重试。", "error");
+    console.error(error);
+    showToast("提取失败：" + error.message, "error");
   } finally {
-    setUiBusy(false);
+    state.isProcessing = false;
   }
 }
 
-function ensureMetadata(video) {
+function captureFrameAt(time) {
   return new Promise((resolve, reject) => {
-    if (video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0) {
-      resolve();
-      return;
-    }
+    const video = elements.previewVideo;
+    
+    let resolved = false;
+    const timeout = setTimeout(() => {
+        if (!resolved) {
+            cleanup();
+            reject(new Error("等待帧定位超时"));
+        }
+    }, 5000);
 
     const cleanup = () => {
-      video.removeEventListener("loadedmetadata", onLoaded);
-      video.removeEventListener("error", onError);
-    };
-
-    const onLoaded = () => {
-      cleanup();
-      resolve();
-    };
-
-    const onError = () => {
-      cleanup();
-      reject(new Error("视频元数据读取失败。"));
-    };
-
-    video.addEventListener("loadedmetadata", onLoaded, { once: true });
-    video.addEventListener("error", onError, { once: true });
-  });
-}
-
-async function captureFrameAt(targetTime) {
-  const video = elements.previewVideo;
-
-  if (video.videoWidth === 0 || video.videoHeight === 0) {
-    throw new Error("视频帧尺寸无效。");
-  }
-
-  await seekVideoTo(video, targetTime);
-
-  const canvas = elements.captureCanvas;
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Canvas 初始化失败。");
-  }
-
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvasToPngBlob(canvas);
-}
-
-function seekVideoTo(video, targetTime) {
-  return new Promise((resolve, reject) => {
-    const current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-    if (Math.abs(current - targetTime) < 0.01) {
-      requestAnimationFrame(() => resolve());
-      return;
-    }
-
-    const cleanup = () => {
-      video.removeEventListener("seeked", onSeeked);
-      video.removeEventListener("error", onError);
+        resolved = true;
+        clearTimeout(timeout);
+        video.removeEventListener("seeked", onSeeked);
     };
 
     const onSeeked = () => {
-      cleanup();
-      resolve();
-    };
-
-    const onError = () => {
-      cleanup();
-      reject(new Error("视频定位失败，请尝试其他格式。"));
-    };
-
-    video.addEventListener("seeked", onSeeked, { once: true });
-    video.addEventListener("error", onError, { once: true });
-    video.currentTime = targetTime;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("PNG 导出失败。"));
-          return;
+        try {
+            cleanup();
+            const canvas = elements.captureCanvas;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error("画布导出失败"));
+            }, "image/png", 1.0); // Highest quality
+        } catch (e) {
+            reject(e);
         }
-        resolve(blob);
-      },
-      "image/png",
-      1
-    );
+    };
+
+    video.currentTime = time;
+    
+    if (Math.abs(video.currentTime - time) < 0.1) {
+        setTimeout(onSeeked, 150); 
+    } else {
+        video.addEventListener("seeked", onSeeked, { once: true });
+    }
   });
 }
 
-function setExtractedFrames(firstBlob, lastBlob) {
-  clearOutputFrames();
+function resetUI() {
+  state.isProcessing = false;
+  
+  if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+  if (state.firstPreviewUrl) URL.revokeObjectURL(state.firstPreviewUrl);
+  if (state.lastPreviewUrl) URL.revokeObjectURL(state.lastPreviewUrl);
 
-  state.firstBlob = firstBlob;
-  state.lastBlob = lastBlob;
-  state.firstPreviewUrl = URL.createObjectURL(firstBlob);
-  state.lastPreviewUrl = URL.createObjectURL(lastBlob);
-
-  elements.firstFrameImg.src = state.firstPreviewUrl;
-  elements.lastFrameImg.src = state.lastPreviewUrl;
-
-  elements.firstFrameImg.classList.remove("hidden");
-  elements.lastFrameImg.classList.remove("hidden");
-  elements.firstFramePlaceholder.classList.add("hidden");
-  elements.lastFramePlaceholder.classList.add("hidden");
-
-  elements.downloadFirstBtn.disabled = false;
-  elements.downloadLastBtn.disabled = false;
-  elements.downloadZipBtn.disabled = false;
-}
-
-function clearOutputFrames() {
-  if (state.firstPreviewUrl) {
-    URL.revokeObjectURL(state.firstPreviewUrl);
-  }
-  if (state.lastPreviewUrl) {
-    URL.revokeObjectURL(state.lastPreviewUrl);
-  }
-
+  state.videoUrl = "";
   state.firstBlob = null;
   state.lastBlob = null;
   state.firstPreviewUrl = "";
   state.lastPreviewUrl = "";
 
-  elements.firstFrameImg.removeAttribute("src");
-  elements.lastFrameImg.removeAttribute("src");
-  elements.firstFrameImg.classList.add("hidden");
-  elements.lastFrameImg.classList.add("hidden");
-  elements.firstFramePlaceholder.classList.remove("hidden");
-  elements.lastFramePlaceholder.classList.remove("hidden");
-
-  elements.downloadFirstBtn.disabled = true;
-  elements.downloadLastBtn.disabled = true;
-  elements.downloadZipBtn.disabled = true;
+  elements.previewVideo.src = "";
+  elements.previewVideo.removeAttribute("src");
+  elements.previewVideo.load();
+  
+  elements.previewVideo.classList.add("hidden");
+  elements.videoOverlay.classList.add("hidden");
+  elements.uploadPrompt.classList.remove("hidden");
+  elements.downloadCurrentBtn.classList.add("hidden");
+  elements.downloadCurrentBtn.classList.remove("flex");
+  
+  elements.mainContainer.classList.remove("has-results");
+  elements.resultsSection.classList.add("hidden");
+  
+  if(elements.statusToast) elements.statusToast.classList.remove("toast-show");
 }
 
-function clearVideoUrl() {
-  if (state.videoUrl) {
-    URL.revokeObjectURL(state.videoUrl);
-    state.videoUrl = "";
+function showToast(msg, type = "info") {
+  if (!elements.statusToast || !elements.statusText) return;
+  
+  elements.statusText.innerText = msg;
+  elements.statusToast.classList.add("toast-show");
+  
+  const alert = elements.statusToast.querySelector(".alert");
+  if (alert) {
+      if (type === "success") {
+          alert.style.borderColor = "rgba(82, 196, 26, 0.5)"; // success with opacity
+      } else if (type === "error") {
+          alert.style.borderColor = "rgba(245, 34, 45, 0.5)"; // error with opacity
+      } else {
+          alert.style.borderColor = "rgba(116, 94, 245, 0.5)"; // primary with opacity
+      }
   }
-}
 
-function setStatus(message, tone = "info", loading = false) {
-  const toneMap = {
-    info: "alert-info",
-    success: "alert-success",
-    warning: "alert-warning",
-    error: "alert-error",
-  };
+  if (elements.statusSpinner) {
+      if (type === "info") {
+          elements.statusSpinner.classList.remove("hidden");
+      } else {
+          elements.statusSpinner.classList.add("hidden");
+      }
+  }
+  
+  if (toastTimeout) {
+      clearTimeout(toastTimeout);
+  }
 
-  elements.statusWrap.classList.remove("hidden");
-  elements.statusAlert.className = `alert ${toneMap[tone] || toneMap.info}`;
-  elements.statusAlert.innerHTML = loading
-    ? `<span class="loading loading-spinner loading-sm"></span><span id="statusText">${escapeHtml(message)}</span>`
-    : `<span id="statusText">${escapeHtml(message)}</span>`;
-  elements.statusText = elements.statusAlert.querySelector("#statusText");
-}
-
-function setUiBusy(isBusy) {
-  elements.videoInput.disabled = isBusy;
-  elements.extractBtn.disabled = isBusy || !elements.previewVideo.src;
-  elements.extractBtn.classList.toggle("btn-disabled", isBusy);
-  if (isBusy) {
-    elements.downloadFirstBtn.disabled = true;
-    elements.downloadLastBtn.disabled = true;
-    elements.downloadZipBtn.disabled = true;
-  } else if (state.firstBlob && state.lastBlob) {
-    elements.downloadFirstBtn.disabled = false;
-    elements.downloadLastBtn.disabled = false;
-    elements.downloadZipBtn.disabled = false;
+  if (type === "success" || type === "error") {
+      toastTimeout = setTimeout(() => {
+          elements.statusToast.classList.remove("toast-show");
+      }, 3000);
   }
 }
 
 function downloadSingle(type) {
-  const blob = type === "first" ? state.firstBlob : state.lastBlob;
-  if (!blob) {
-    setStatus("没有可下载的图片，请先提取。", "warning");
-    return;
-  }
+    const blob = type === "first" ? state.firstBlob : state.lastBlob;
+    if (!blob) return;
+    const filename = type === "first" ? "首帧.png" : "尾帧.png";
+    saveBlob(blob, filename);
+}
 
-  const fileName = type === "first" ? "first-frame.png" : "last-frame.png";
-  saveBlob(blob, fileName);
+function downloadCurrentFrame() {
+    if (!state.videoUrl || elements.previewVideo.classList.contains("hidden")) return;
+    
+    showToast("正在提取当前帧...", "info");
+    try {
+        const canvas = elements.captureCanvas;
+        const video = elements.previewVideo;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const timeStr = formatTime(video.currentTime).replace(":", "-");
+                saveBlob(blob, `当前帧_${timeStr}.png`);
+                showToast("提取当前帧成功！", "success");
+            } else {
+                throw new Error("画布导出失败");
+            }
+        }, "image/png", 1.0);
+    } catch (error) {
+        console.error(error);
+        showToast("提取失败：" + error.message, "error");
+    }
 }
 
 async function downloadZip() {
-  if (!state.firstBlob || !state.lastBlob) {
-    setStatus("请先提取首尾帧后再下载 ZIP。", "warning");
-    return;
-  }
-
-  if (typeof JSZip === "undefined") {
-    setStatus("ZIP 组件加载失败，请刷新页面重试。", "error");
-    return;
-  }
-
-  setStatus("正在生成 ZIP 文件...", "info", true);
-  try {
-    const zip = new JSZip();
-    zip.file("first-frame.png", state.firstBlob);
-    zip.file("last-frame.png", state.lastBlob);
-    const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-    saveBlob(zipBlob, "frames.zip");
-    setStatus("ZIP 下载已开始。", "success");
-  } catch (error) {
-    setStatus(error.message || "ZIP 生成失败。", "error");
-  }
+    if (!state.firstBlob || !state.lastBlob) return;
+    
+    showToast("正在生成 ZIP 压缩包...", "info");
+    try {
+        const zip = new JSZip();
+        zip.file("首帧.png", state.firstBlob);
+        zip.file("尾帧.png", state.lastBlob);
+        
+        const content = await zip.generateAsync({type: "blob"});
+        saveBlob(content, "视频首尾帧_高清.zip");
+        showToast("打包完成，已开始下载", "success");
+    } catch (e) {
+        showToast("ZIP 生成失败：" + e.message, "error");
+    }
 }
 
-function saveBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 200);
+function saveBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
-
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-window.addEventListener("beforeunload", () => {
-  clearVideoUrl();
-  clearOutputFrames();
-});
 
 init();
