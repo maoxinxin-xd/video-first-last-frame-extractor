@@ -6,6 +6,7 @@ const elements = {
   uploadPrompt: document.querySelector("#uploadPrompt"),
   replaceBtn: document.querySelector("#replaceBtn"),
   videoOverlay: document.querySelector("#videoOverlay"),
+  copyVideoFrameBtn: document.querySelector("#copyVideoFrameBtn"),
   
   resultsSection: document.querySelector("#resultsSection"),
   firstFrameImg: document.querySelector("#firstFrameImg"),
@@ -17,6 +18,8 @@ const elements = {
   downloadLastBtn: document.querySelector("#downloadLastBtn"),
   downloadZipBtn: document.querySelector("#downloadZipBtn"),
   downloadCurrentBtn: document.querySelector("#downloadCurrentBtn"),
+  copyFirstBtn: document.querySelector("#copyFirstBtn"),
+  copyLastBtn: document.querySelector("#copyLastBtn"),
   
   captureCanvas: document.querySelector("#captureCanvas"),
   statusToast: document.querySelector("#statusToast"),
@@ -106,6 +109,26 @@ function bindEvents() {
       e.stopPropagation();
       downloadCurrentFrame();
   });
+
+  // Copy
+  if (elements.copyVideoFrameBtn) {
+      elements.copyVideoFrameBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          copyCurrentFrame();
+      });
+  }
+  if (elements.copyFirstBtn) {
+      elements.copyFirstBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          copySingle("first");
+      });
+  }
+  if (elements.copyLastBtn) {
+      elements.copyLastBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          copySingle("last");
+      });
+  }
 }
 
 function handleFile(file) {
@@ -358,6 +381,53 @@ function saveBlob(blob, filename) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+async function copyToClipboard(blob) {
+    if (!blob) return;
+    try {
+        if (!navigator.clipboard || !window.ClipboardItem) {
+            throw new Error("浏览器不支持剪贴板图片操作");
+        }
+        const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+        await navigator.clipboard.write([clipboardItem]);
+        showToast("已成功复制到剪贴板！", "success");
+    } catch (err) {
+        console.error("复制失败:", err);
+        showToast("复制失败：" + err.message, "error");
+    }
+}
+
+function copySingle(type) {
+    const blob = type === "first" ? state.firstBlob : state.lastBlob;
+    if (!blob) return;
+    copyToClipboard(blob);
+}
+
+function copyCurrentFrame() {
+    if (!state.videoUrl || elements.previewVideo.classList.contains("hidden")) return;
+    
+    showToast("正在提取当前帧以复制...", "info");
+    try {
+        const canvas = elements.captureCanvas;
+        const video = elements.previewVideo;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+            if (blob) {
+                copyToClipboard(blob);
+            } else {
+                throw new Error("画布导出失败");
+            }
+        }, "image/png", 1.0);
+    } catch (error) {
+        console.error(error);
+        showToast("提取失败：" + error.message, "error");
+    }
 }
 
 init();

@@ -48,52 +48,60 @@
 /* Toast 显示动画 */
 .toast-show {
   opacity: 1 !important;
-  transform: translateY(0) !important;
+  transform: translate(-50%, 0) !important;
   pointer-events: auto !important;
 }
 
 /* 响应式调整 */
 @media (max-width: 1024px) {
   .app-workspace {
-    flex-direction: column;
-    height: auto;
-    min-height: 80vh;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 80vh !important;
     max-width: 100% !important;
   }
+  .video-panel {
+    min-height: 40vh !important;
+  }
   .results-sidebar {
-    width: 100%;
-    flex-direction: row;
-    height: 220px;
+    width: 100% !important;
+    flex-direction: row !important;
+    height: 220px !important;
   }
   .result-card {
-    height: 100%;
+    height: 100% !important;
   }
   #downloadZipBtn {
-    width: 60px;
-    height: 100%;
-    flex-direction: column;
+    width: 60px !important;
+    height: 100% !important;
+    flex-direction: column !important;
   }
   #downloadZipBtn span {
-    writing-mode: vertical-lr;
-    letter-spacing: 2px;
+    writing-mode: vertical-lr !important;
+    letter-spacing: 2px !important;
   }
 }
 
 @media (max-width: 640px) {
+  .app-workspace {
+    min-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
   .results-sidebar {
-    flex-direction: column;
-    height: auto;
+    flex-direction: column !important;
+    height: auto !important;
   }
   .result-card {
-    height: 180px;
+    height: 180px !important;
   }
   #downloadZipBtn {
-    width: 100%;
-    height: 50px;
-    flex-direction: row;
+    width: 100% !important;
+    height: 50px !important;
+    flex-direction: row !important;
   }
   #downloadZipBtn span {
-    writing-mode: horizontal-tb;
-    letter-spacing: normal;
+    writing-mode: horizontal-tb !important;
+    letter-spacing: normal !important;
   }
 }

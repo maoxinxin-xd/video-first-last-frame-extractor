@@ -26,7 +26,7 @@
 </head>
 
 <body
-  class="app-body relative bg-[#0A0A0A] text-white font-sans antialiased overflow-hidden flex flex-col h-screen selection:bg-primary selection:text-white">
+  class="app-body relative bg-[#0A0A0A] text-white font-sans antialiased flex flex-col min-h-screen selection:bg-primary selection:text-white">
 
   <!-- 环境光背景 -->
   <div class="ambient-bg absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -109,7 +109,18 @@
 
           <!-- 悬停时替换按钮 -->
           <div id="videoOverlay"
-            class="video-overlay absolute inset-0 hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-start justify-end p-4 pointer-events-none">
+            class="video-overlay absolute inset-0 hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none p-4 flex justify-end items-start gap-3">
+            <!-- 复制当前帧按钮 -->
+            <button id="copyVideoFrameBtn"
+              class="pointer-events-auto flex items-center gap-2 bg-[#262626]/90 hover:bg-primary text-white border border-white/10 rounded-xl px-4 py-2.5 backdrop-blur-xl transition-all hover:shadow-[0_0_20px_rgba(116,94,245,0.4)] hover:border-primary/50 group/btn"
+              title="复制当前帧">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+              </svg>
+              <span class="text-sm font-medium">复制当前帧</span>
+            </button>
+            
+            <!-- 右上角替换按钮 -->
             <button id="replaceBtn"
               class="pointer-events-auto flex items-center gap-2 bg-[#262626]/90 hover:bg-primary text-white border border-white/10 rounded-xl px-4 py-2.5 backdrop-blur-xl transition-all hover:shadow-[0_0_20px_rgba(116,94,245,0.4)] hover:border-primary/50 group/btn"
               title="更换视频">
@@ -157,7 +168,14 @@
               alt="首帧" />
           </div>
           <div
-            class="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            class="absolute bottom-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            <button id="copyFirstBtn"
+              class="flex items-center justify-center w-10 h-10 bg-black/60 hover:bg-primary text-white border border-white/20 rounded-xl backdrop-blur-xl shadow-lg transition-all hover:scale-105"
+              title="复制首帧">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+              </svg>
+            </button>
             <button id="downloadFirstBtn"
               class="flex items-center justify-center w-10 h-10 bg-black/60 hover:bg-primary text-white border border-white/20 rounded-xl backdrop-blur-xl shadow-lg transition-all hover:scale-105"
               title="下载首帧">
@@ -187,7 +205,14 @@
               alt="尾帧" />
           </div>
           <div
-            class="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            class="absolute bottom-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            <button id="copyLastBtn"
+              class="flex items-center justify-center w-10 h-10 bg-black/60 hover:bg-primary text-white border border-white/20 rounded-xl backdrop-blur-xl shadow-lg transition-all hover:scale-105"
+              title="复制尾帧">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+              </svg>
+            </button>
             <button id="downloadLastBtn"
               class="flex items-center justify-center w-10 h-10 bg-black/60 hover:bg-primary text-white border border-white/20 rounded-xl backdrop-blur-xl shadow-lg transition-all hover:scale-105"
               title="下载尾帧">
